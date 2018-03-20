@@ -1,0 +1,114 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "prefix": {
+      "type": "string",
+      "defaultValue": "dev",
+      "maxLength": 4
+    }
+  },
+  "variables": {
+    "entropy": "[uniqueString(resourceGroup().id, parameters('prefix'))]",
+
+    "textAnalyticsName": "[concat(parameters('prefix'), variables('entropy'))]",
+    "textAnalyticsID": "[resourceId('Microsoft.CognitiveServices/accounts', variables('textAnalyticsName'))]",
+
+    "functionName": "[concat(parameters('prefix'), variables('entropy'))]",
+
+    "functionStorageName": "[concat(parameters('prefix'), variables('entropy'))]",
+    "functionStorageID": "[resourceId('Microsoft.Storage/storageAccounts', variables('functionStorageName'))]",
+
+    "cognitiveServicesLocation": "australiaeast",
+    "functionLocation": "australiaeast"
+  },
+  "resources": [
+
+    {
+      "apiVersion": "2017-04-18",
+      "type": "Microsoft.CognitiveServices/accounts",
+
+      "name": "[variables('textAnalyticsName')]",
+      "location": "[variables('cognitiveServicesLocation')]",
+
+      "kind": "TextAnalytics",
+      "sku": {
+        "name": "S0"
+      },
+      "properties": {}
+    },
+
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Storage/storageAccounts",
+
+      "name": "[variables('functionStorageName')]",
+      "location": "[variables('functionLocation')]",
+
+      "properties": {
+        "accountType": "Standard_LRS"
+      }
+    },
+
+    {
+      "apiVersion": "2015-04-01",
+      "type": "Microsoft.Web/serverfarms",
+
+      "name": "[variables('functionName')]",
+      "location": "[variables('functionLocation')]",
+
+      "properties": {
+        "name": "[variables('functionName')]",
+        "computeMode": "Dynamic",
+        "sku": "Dynamic"
+      }
+    },
+
+    {
+      "apiVersion": "2015-08-01",
+      "type": "Microsoft.Web/sites",
+
+      "name": "[variables('functionName')]",
+      "location": "[variables('functionLocation')]",
+
+      "dependsOn": [
+        "[concat('Microsoft.Web/serverfarms/', variables('functionName'))]"
+      ],
+
+      "kind": "functionapp",
+      "properties": {
+        "clientAffinityEnabled": false,
+        "httpsOnly": true,
+
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms/', variables('functionName'))]"
+      }
+    },
+
+    {
+      "apiVersion": "2015-08-01",
+      "type": "Microsoft.Web/sites/config",
+
+      "name": "[concat(variables('functionName'), '/appsettings')]",
+
+      "dependsOn": [
+        "[concat('Microsoft.Web/sites/', variables('functionName'))]",
+        "[concat('Microsoft.Storage/storageAccounts/', variables('functionStorageName'))]",
+        "[concat('Microsoft.CognitiveServices/accounts/', variables('textAnalyticsName'))]"
+      ],
+
+      "properties": {
+        "AzureWebJobsDashboard": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('functionStorageName'), ';AccountKey=', listKeys(variables('functionStorageID'), '2015-05-01-preview').key1)]",
+        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('functionStorageName'), ';AccountKey=', listKeys(variables('functionStorageID'), '2015-05-01-preview').key1)]",
+        "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('functionStorageName'), ';AccountKey=', listKeys(variables('functionStorageID'), '2015-05-01-preview').key1)]",
+
+        "WEBSITE_CONTENTSHARE": "[variables('functionName')]",
+        "FUNCTIONS_EXTENSION_VERSION": "~1",
+        "FUNCTION_APP_EDIT_MODE": "readonly",
+
+        "TextAnalyticsUrl": "[reference(variables('textAnalyticsID')).endpoint]",
+        "TextAnalyticsKey": "[listKeys(variables('textAnalyticsID'), '2017-04-18').key1]"
+      }
+    }
+
+  ]
+}

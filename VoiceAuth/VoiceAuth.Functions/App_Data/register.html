@@ -1,0 +1,112 @@
+﻿<!DOCTYPE html>
+
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Voice Login</title>
+    <style type='text/css'>
+        ul {
+            list-style: none;
+        }
+
+        #recordingslist audio {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        body, html {
+            text-align: center;
+        }
+
+        .results {
+            font-weight: bold;
+            font-size: 16px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css" />
+</head>
+<body>
+
+    <h1>Register For Voice Recognition</h1>
+
+    <p>To Register, please enter your username, press 'Start Recording' and say the following phrase:</p>
+    <p>"My voice is my passport verify me"</p>
+
+    <input type="text" id="username" value="username" /><br />
+    <button id="recordButton" onclick="startRecording(this);">Start Recording</button>
+    <button id="stopButton" onclick="stopRecording(this);" class="hidden">Stop</button>
+
+    <p id="resultsView"></p>
+
+    <ul id="recordingslist"></ul>
+    <script>
+        function __log(e, data) {
+
+        }
+
+        var audio_context;
+        var recorder;
+
+        function startUserMedia(stream) {
+            var input = audio_context.createMediaStreamSource(stream);
+            recorder = new Recorder(input);
+        }
+
+        function startRecording(button) {
+            recorder && recorder.record();
+            document.getElementById("recordButton").className = "hidden";
+            document.getElementById("stopButton").className = "";
+            document.getElementById("resultsView").innerText = "";
+        }
+
+        function stopRecording(button) {
+            recorder && recorder.stop();
+            document.getElementById("recordButton").className = "";
+            document.getElementById("stopButton").className = "hidden";
+            //Login
+            recorder && recorder.exportWAV(function (blob) {
+                var username = document.getElementById("username").value;
+                var xmlhttp = new XMLHttpRequest();
+                xmlhttp.onreadystatechange = function () {
+                    if (xmlhttp.readyState == 4) {
+                        document.getElementById("resultsView").innerText = xmlhttp.status + ": " + xmlhttp.responseText;
+                        console.log(xmlhttp.responseText);
+                    }
+                }
+                xmlhttp.open("POST", "/api/enroll/" + username, true);
+                xmlhttp.setRequestHeader("Content-type", "application/octet-stream");
+                xmlhttp.send(blob);
+
+            });
+
+            recorder.clear();
+        }
+
+        function cancelRecording(button) {
+            recorder && recorder.stop();
+            recorder.clear();
+        }
+
+        window.onload = function init() {
+            try {
+                // webkit shim
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
+                window.URL = window.URL || window.webkitURL;
+                audio_context = new AudioContext;
+            } catch (e) {
+                alert('No web audio support in this browser!');
+            }
+
+            navigator.getUserMedia({ audio: true }, startUserMedia, function (e) {
+                console.log('No live audio input: ' + e);
+            });
+        };
+    </script>
+    <script src="recorder.js"></script>
+</body>
+</html>

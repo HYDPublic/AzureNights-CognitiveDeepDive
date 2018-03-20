@@ -1,0 +1,30 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "prefix": {
+            "type": "string",
+            "defaultValue": "cv"
+        }
+    },
+    "variables": {
+        "entropy": "[uniqueString(resourceGroup().id, parameters('prefix'))]",
+
+        "computerVisionName": "[concat(parameters('prefix'),variables('entropy'))]",
+
+        "cognitiveServicesLocation": "westus"
+    },
+    "resources": [
+        {
+            "apiVersion": "2016-02-01-preview",
+            "name": "[variables('computerVisionName')]",
+            "location": "[variables('cognitiveServicesLocation')]",
+            "type": "Microsoft.CognitiveServices/accounts",
+            "kind": "ComputerVision",
+            "sku": {
+                "name": "S1"
+            },
+            "properties": {}
+        }
+    ]
+}
